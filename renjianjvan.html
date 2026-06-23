@@ -1,0 +1,1564 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
+  <title>人间卷 · 创作管理</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: -apple-system, 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', sans-serif;
+      background: #f5f5f5;
+      height: 100vh;
+      display: flex;
+      overflow: hidden;
+      color: #2c2c2c;
+    }
+    .sidebar {
+      width: 240px;
+      background: white;
+      border-right: 1px solid #e9eef5;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      flex-shrink: 0;
+      transition: transform 0.25s ease;
+      z-index: 20;
+    }
+    .sidebar-header {
+      padding: 24px 20px 16px;
+      font-size: 1.6rem;
+      font-weight: 500;
+      letter-spacing: 2px;
+      color: #4a5568;
+      border-bottom: 1px solid #edf2f7;
+    }
+    .sidebar-nav {
+      flex: 1;
+      padding: 16px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      color: #2d3748;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s;
+      font-size: 0.95rem;
+    }
+    .nav-item svg {
+      width: 20px;
+      height: 20px;
+      stroke: #4a5568;
+      fill: none;
+      stroke-width: 2;
+    }
+    .nav-item.active {
+      background: #e9eef5;
+      color: #1e293b;
+      font-weight: 600;
+    }
+    .nav-item:hover:not(.active) {
+      background: #f7fafc;
+    }
+    .sidebar-footer {
+      padding: 16px 12px;
+      border-top: 1px solid #edf2f7;
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+    }
+    .icon-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 8px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #4a5568;
+      transition: background 0.15s;
+    }
+    .icon-btn:hover {
+      background: #edf2f7;
+    }
+    .icon-btn svg {
+      width: 20px;
+      height: 20px;
+    }
+    .menu-toggle {
+      display: none;
+      position: fixed;
+      top: 16px;
+      left: 16px;
+      z-index: 30;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+      padding: 8px;
+      cursor: pointer;
+    }
+    .overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.3);
+      z-index: 15;
+    }
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+      background: #f5f5f5;
+    }
+    .top-bar {
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: white;
+      border-bottom: 1px solid #e9eef5;
+    }
+    .search-wrap {
+      flex: 1;
+      max-width: 400px;
+    }
+    .search-input {
+      width: 100%;
+      padding: 10px 16px;
+      border-radius: 30px;
+      border: 1px solid #e2e8f0;
+      background: #f8fafc;
+      font-size: 0.9rem;
+      outline: none;
+    }
+    .top-actions {
+      display: flex;
+      gap: 8px;
+    }
+    .role-layout {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+      padding: 16px;
+      gap: 16px;
+    }
+    .filter-bar {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .filter-select {
+      padding: 8px 12px;
+      border-radius: 20px;
+      border: 1px solid #e2e8f0;
+      background: white;
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+    .toggle-star {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: white;
+      border: 1px solid #e2e8f0;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      user-select: none;
+    }
+    .left-panel {
+      width: 260px;
+      background: white;
+      border-radius: 16px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+      flex-shrink: 0;
+    }
+    .role-list {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-top: 8px;
+    }
+    .role-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 12px;
+      border-radius: 12px;
+      cursor: grab;
+      background: #fafbfc;
+      transition: background 0.15s;
+      border: 1px solid transparent;
+      user-select: none;
+    }
+    .role-item:active {
+      cursor: grabbing;
+    }
+    .role-item.selected {
+      background: #e9eef5;
+      border-color: #cbd5e0;
+    }
+    .role-name {
+      font-weight: 500;
+      flex: 1;
+      pointer-events: none;
+    }
+    .star-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 4px;
+      margin-right: 4px;
+      pointer-events: auto;
+      display: flex;
+      align-items: center;
+    }
+    .star-btn svg {
+      width: 18px;
+      height: 18px;
+    }
+    .add-role-btn {
+      margin-top: 12px;
+      align-self: center;
+      background: #e9eef5;
+      border: none;
+      width: 44px;
+      height: 44px;
+      border-radius: 30px;
+      font-size: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: #4a5568;
+      transition: background 0.2s;
+      flex-shrink: 0;
+      draggable: false;
+    }
+    .add-role-btn:hover {
+      background: #d9e0ec;
+    }
+    .right-panel {
+      flex: 1;
+      background: white;
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+      overflow-y: auto;
+    }
+    .empty-detail {
+      color: #a0aec0;
+      text-align: center;
+      margin-top: 60px;
+    }
+    .detail-avatar {
+      width: 90px;
+      height: 90px;
+      border-radius: 50%;
+      object-fit: cover;
+      background: #edf2f7;
+      margin-bottom: 16px;
+      border: 3px solid white;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    .detail-name {
+      font-size: 1.8rem;
+      font-weight: 600;
+    }
+    .field-row {
+      margin: 12px 0;
+    }
+    .tag-badge {
+      display: inline-block;
+      background: #e9eef5;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      margin: 3px;
+      cursor: default;
+    }
+    .tag-badge[data-id] {
+      cursor: default;
+    }
+    .action-btns {
+      margin-top: 24px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .btn {
+      padding: 8px 18px;
+      border-radius: 20px;
+      border: none;
+      background: #edf2f7;
+      cursor: pointer;
+      font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.9rem;
+      transition: opacity 0.2s;
+    }
+    .btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    .btn.primary {
+      background: #4a5568;
+      color: white;
+    }
+    .edit-form input, .edit-form textarea {
+      width: 100%;
+      padding: 10px;
+      margin: 8px 0;
+      border-radius: 12px;
+      border: 1px solid #e2e8f0;
+      font-family: inherit;
+      font-size: 0.9rem;
+    }
+    .edit-form select {
+      width: 100%;
+      padding: 10px;
+      margin: 8px 0;
+      border-radius: 12px;
+      border: 1px solid #e2e8f0;
+      font-family: inherit;
+      font-size: 0.9rem;
+      background: white;
+    }
+    .custom-field-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin: 6px 0;
+    }
+    .tag-selector {
+      position: relative;
+      margin: 12px 0;
+    }
+    .tag-selector-trigger {
+      min-height: 42px;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 8px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      cursor: pointer;
+      background: white;
+    }
+    .tag-dropdown {
+      position: absolute;
+      top: 48px;
+      left: 0;
+      width: 100%;
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+      padding: 12px;
+      z-index: 25;
+      border: 1px solid #edf2f7;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .tag-dropdown .search-input-sm {
+      width: 100%;
+      padding: 6px 10px;
+      border-radius: 20px;
+      border: 1px solid #e2e8f0;
+      margin-bottom: 8px;
+      font-size: 0.8rem;
+      outline: none;
+    }
+    .tag-option {
+      cursor: pointer;
+      user-select: none;
+      display: inline-block;
+    }
+    .tag-option.selected {
+      background: #4a5568;
+      color: white;
+    }
+    .upload-preview {
+      width: 80px;
+      height: 80px;
+      border-radius: 12px;
+      object-fit: cover;
+      margin: 8px 0;
+      border: 1px solid #e2e8f0;
+    }
+    .modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 50;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .card-container {
+      background: white;
+      border-radius: 28px;
+      padding: 24px;
+      width: 320px;
+      aspect-ratio: 3/4;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .card-bg-blur {
+      position: absolute;
+      inset: 0;
+      background-size: cover;
+      background-position: center;
+      filter: blur(20px);
+      opacity: 0.25;
+      border-radius: 28px;
+    }
+    .card-avatar {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      border: 2px solid white;
+      z-index: 2;
+      object-fit: cover;
+      background: #e2e8f0;
+    }
+    .card-info {
+      background: rgba(255,255,255,0.88);
+      border-radius: 20px;
+      padding: 16px;
+      margin-top: 12px;
+      width: 100%;
+      z-index: 2;
+      backdrop-filter: blur(8px);
+    }
+    .story-cover-small {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      object-fit: cover;
+      background: #edf2f7;
+      margin-right: 8px;
+      flex-shrink: 0;
+    }
+    .story-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 12px;
+      cursor: grab;
+      background: #fafbfc;
+      transition: background 0.15s;
+      border: 1px solid transparent;
+      user-select: none;
+    }
+    .story-item:active { cursor: grabbing; }
+    .story-item.selected { background: #e9eef5; border-color: #cbd5e0; }
+    .story-item .story-name { font-weight: 500; flex: 1; pointer-events: none; }
+    .story-item .story-tags { display: flex; gap: 4px; flex-wrap: wrap; pointer-events: none; }
+    .story-item .story-tags .tag-badge { font-size: 0.7rem; }
+    .chapter-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 12px;
+      cursor: grab;
+      background: #fafbfc;
+      transition: background 0.15s;
+      border: 1px solid transparent;
+      user-select: none;
+      margin: 4px 0;
+    }
+    .chapter-item:active { cursor: grabbing; }
+    .chapter-item .chapter-title { font-weight: 500; flex: 1; pointer-events: none; }
+    .chapter-item .chapter-actions { display: flex; gap: 4px; pointer-events: auto; }
+    .worldview-tag {
+      display: inline-block;
+      background: #e9eef5;
+      padding: 2px 10px;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      margin: 2px;
+    }
+    .modal-inner {
+      background: white;
+      border-radius: 24px;
+      padding: 24px;
+      max-width: 500px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+    .modal-inner h3 { margin-bottom: 12px; }
+    .modal-inner input, .modal-inner textarea {
+      width: 100%;
+      padding: 10px;
+      margin: 6px 0;
+      border-radius: 12px;
+      border: 1px solid #e2e8f0;
+      font-family: inherit;
+    }
+    .read-mode {
+      max-width: 700px;
+      margin: 0 auto;
+    }
+    .read-mode .read-header-img {
+      width: 100%;
+      max-height: 300px;
+      object-fit: cover;
+      border-radius: 16px;
+      margin-bottom: 0;
+    }
+    .read-mode .read-gradient {
+      height: 60px;
+      background: linear-gradient(transparent, white);
+      margin-top: -60px;
+      position: relative;
+      z-index: 2;
+    }
+    .read-mode .read-content {
+      background: white;
+      padding: 20px 24px;
+      border-radius: 16px;
+      margin-top: -20px;
+      position: relative;
+      z-index: 3;
+      line-height: 1.8;
+      white-space: pre-wrap;
+    }
+    .read-mode .read-nav {
+      display: flex;
+      gap: 12px;
+      margin-top: 20px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .read-mode .edit-chapter-input {
+      width: 100%;
+      padding: 10px;
+      border-radius: 12px;
+      border: 1px solid #e2e8f0;
+      font-family: inherit;
+      font-size: 0.9rem;
+      margin: 4px 0;
+    }
+    .read-mode .edit-chapter-textarea {
+      width: 100%;
+      min-height: 200px;
+      padding: 10px;
+      border-radius: 12px;
+      border: 1px solid #e2e8f0;
+      font-family: inherit;
+      font-size: 0.9rem;
+      margin: 4px 0;
+      resize: vertical;
+    }
+    .multi-select-container {
+      position: relative;
+      margin: 8px 0;
+    }
+    .multi-select-trigger {
+      min-height: 42px;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 8px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      cursor: pointer;
+      background: white;
+    }
+    .multi-select-dropdown {
+      position: absolute;
+      top: 48px;
+      left: 0;
+      width: 100%;
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+      padding: 12px;
+      z-index: 25;
+      border: 1px solid #edf2f7;
+      max-height: 200px;
+      overflow-y: auto;
+      display: none;
+    }
+    .multi-select-dropdown .search-input-sm {
+      width: 100%;
+      padding: 6px 10px;
+      border-radius: 20px;
+      border: 1px solid #e2e8f0;
+      margin-bottom: 8px;
+      font-size: 0.8rem;
+      outline: none;
+    }
+    .multi-select-option {
+      cursor: pointer;
+      user-select: none;
+      display: inline-block;
+    }
+    .multi-select-option.selected {
+      background: #4a5568;
+      color: white;
+    }
+    .multi-select-badge {
+      display: inline-block;
+      background: #e9eef5;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      margin: 2px;
+    }
+    .multi-select-badge .remove-btn {
+      margin-left: 4px;
+      cursor: pointer;
+    }
+    @media (max-width: 768px) {
+      .sidebar {
+        position: fixed;
+        left: 0;
+        top: 0;
+        transform: translateX(-100%);
+        height: 100%;
+      }
+      .sidebar.open {
+        transform: translateX(0);
+      }
+      .menu-toggle {
+        display: flex;
+      }
+      .overlay.show {
+        display: block;
+      }
+      .role-layout {
+        flex-direction: column;
+      }
+      .left-panel {
+        width: 100%;
+        max-height: 220px;
+      }
+    }
+  </style>
+</head>
+<body>
+<div class="menu-toggle" id="menuToggle">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+</div>
+<div class="overlay" id="overlay"></div>
+
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-header">人间卷</div>
+  <div class="sidebar-nav">
+    <div class="nav-item active" data-page="roles">
+      <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>角色管理
+    </div>
+    <div class="nav-item" data-page="worldviews">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>世界观
+    </div>
+    <div class="nav-item" data-page="stories">
+      <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>故事管理
+    </div>
+  </div>
+  <div class="sidebar-footer">
+    <button class="icon-btn" id="exportBtn" title="导出JSON"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>
+    <button class="icon-btn" id="importBtn" title="导入JSON"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></button>
+  </div>
+</aside>
+
+<main class="main">
+  <div class="top-bar">
+    <div class="search-wrap"><input type="text" class="search-input" placeholder="搜索..." id="searchInput"></div>
+    <div class="top-actions"></div>
+  </div>
+  <div id="pageContent" class="role-layout"></div>
+</main>
+
+<script>
+  (function() {
+    // ---------- 数据 ----------
+    let currentPage = 'roles';
+    let roles = [];
+    let stories = [];
+    let worldviews = [];
+    let tagPool = ['主角','反派','配角','英雄','智者'];
+    let selectedRoleId = null;
+    let selectedStoryId = null;
+    let selectedWorldviewId = null;
+    let selectedWvFilter = '';
+    let starFilter = false;
+    let editMode = false;
+    let editingId = null;
+    let readModeChapterId = null;
+    let storyFilterWorldId = '';
+    let readingEditMode = false;
+
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('overlay');
+    const menuToggle = document.getElementById('menuToggle');
+    const pageContent = document.getElementById('pageContent');
+    const searchInput = document.getElementById('searchInput');
+
+    // ---------- 存储 ----------
+    function loadFromStorage(key, def) { try { const v=localStorage.getItem(key); return v?JSON.parse(v):def; } catch { return def; } }
+    function saveToStorage(key, val) { localStorage.setItem(key, JSON.stringify(val)); }
+
+    function loadAllData() {
+      roles = loadFromStorage('roles', []);
+      stories = loadFromStorage('stories', []);
+      worldviews = loadFromStorage('worldviews', []);
+      tagPool = loadFromStorage('tagPool', ['主角','反派','配角']);
+    }
+    function saveAllData() {
+      saveToStorage('roles', roles);
+      saveToStorage('stories', stories);
+      saveToStorage('worldviews', worldviews);
+      saveToStorage('tagPool', tagPool);
+    }
+
+    // ---------- 工具 ----------
+    function fileToBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+    function genId() { return 'id_' + Date.now() + Math.random().toString(36).slice(2,6); }
+
+    // ---------- 拖拽排序 ----------
+    function makeSortable(containerSelector, onUpdate) {
+      const container = document.querySelector(containerSelector);
+      if (!container) return;
+      let dragEl = null;
+      container.addEventListener('dragstart', (e) => {
+        const item = e.target.closest('[draggable="true"]');
+        if (!item) return;
+        dragEl = item;
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', '');
+        item.style.opacity = '0.5';
+      });
+      container.addEventListener('dragend', (e) => {
+        const item = e.target.closest('[draggable="true"]');
+        if (item) item.style.opacity = '1';
+        document.querySelectorAll('.role-item, .story-item, .chapter-item, .tag-option, .worldview-item').forEach(el => el.style.borderColor = 'transparent');
+      });
+      container.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        const target = e.target.closest('[draggable="true"]');
+        if (!target || target === dragEl) return;
+        const rect = target.getBoundingClientRect();
+        const mid = rect.top + rect.height/2;
+        if (e.clientY > mid) {
+          target.style.borderBottom = '2px solid #4a5568';
+          target.style.borderTop = 'transparent';
+        } else {
+          target.style.borderTop = '2px solid #4a5568';
+          target.style.borderBottom = 'transparent';
+        }
+      });
+      container.addEventListener('drop', (e) => {
+        e.preventDefault();
+        const target = e.target.closest('[draggable="true"]');
+        if (!target || target === dragEl) return;
+        const rect = target.getBoundingClientRect();
+        const mid = rect.top + rect.height/2;
+        const after = e.clientY > mid;
+        const parent = target.parentNode;
+        const items = Array.from(parent.querySelectorAll('[draggable="true"]'));
+        const idxA = items.indexOf(dragEl);
+        const idxB = items.indexOf(target);
+        if (idxA === -1 || idxB === -1) return;
+        if (after && idxB < items.length-1) {
+          parent.insertBefore(dragEl, items[idxB+1]);
+        } else if (!after && idxB > 0) {
+          parent.insertBefore(dragEl, items[idxB]);
+        } else if (!after && idxB === 0) {
+          parent.insertBefore(dragEl, items[0]);
+        } else if (after && idxB === items.length-1) {
+          parent.appendChild(dragEl);
+        } else {
+          parent.insertBefore(dragEl, after ? items[idxB+1] : items[idxB]);
+        }
+        dragEl.style.opacity = '1';
+        document.querySelectorAll('.role-item, .story-item, .chapter-item, .tag-option, .worldview-item').forEach(el => el.style.borderColor = 'transparent');
+        if (onUpdate) onUpdate(Array.from(parent.querySelectorAll('[draggable="true"]')));
+        dragEl = null;
+      });
+    }
+
+    // ---------- 独立多选组件 ----------
+    function renderMultiSelect(containerId, allItems, selectedIds, displayKey, label, onChange) {
+      const container = document.getElementById(containerId);
+      if (!container) return;
+      let selected = [...selectedIds];
+      let isOpen = false;
+
+      function render() {
+        container.innerHTML = `
+          <div class="multi-select-container" id="ms_${containerId}">
+            <div class="multi-select-trigger" id="ms_trigger_${containerId}">
+              ${selected.length ? selected.map(id => {
+                const item = allItems.find(i => i.id === id);
+                return `<span class="multi-select-badge" data-id="${id}">${item ? item[displayKey] : id}<span class="remove-btn" data-remove="${id}">×</span></span>`;
+              }).join('') : `<span style="color:#a0aec0;">${label || '选择...'}</span>`}
+            </div>
+            <div class="multi-select-dropdown" id="ms_dropdown_${containerId}"></div>
+          </div>
+        `;
+        const trigger = document.getElementById('ms_trigger_' + containerId);
+        const dropdown = document.getElementById('ms_dropdown_' + containerId);
+
+        function renderDropdown(filter = '') {
+          const filtered = filter ? allItems.filter(it => it[displayKey].toLowerCase().includes(filter.toLowerCase())) : allItems;
+          dropdown.innerHTML = `
+            <input class="search-input-sm" id="ms_search_${containerId}" placeholder="搜索...">
+            <div style="display:flex;flex-wrap:wrap;gap:4px;">
+              ${filtered.map(it => `<span class="multi-select-option ${selected.includes(it.id) ? 'selected' : ''}" data-id="${it.id}">${it[displayKey]}</span>`).join('')}
+            </div>
+          `;
+          const searchEl = document.getElementById('ms_search_' + containerId);
+          if (searchEl) {
+            searchEl.addEventListener('input', (e) => renderDropdown(e.target.value));
+            searchEl.addEventListener('click', (e) => e.stopPropagation());
+          }
+          dropdown.querySelectorAll('.multi-select-option').forEach(opt => {
+            opt.addEventListener('click', (e) => {
+              e.stopPropagation();
+              const id = opt.dataset.id;
+              if (selected.includes(id)) {
+                selected = selected.filter(s => s !== id);
+              } else {
+                selected.push(id);
+              }
+              if (onChange) onChange(selected);
+              render();
+            });
+          });
+        }
+
+        trigger.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (e.target.dataset.remove) {
+            selected = selected.filter(s => s !== e.target.dataset.remove);
+            if (onChange) onChange(selected);
+            render();
+            return;
+          }
+          isOpen = !isOpen;
+          dropdown.style.display = isOpen ? 'block' : 'none';
+          if (isOpen) renderDropdown();
+        });
+
+        document.addEventListener('click', (e) => {
+          const msContainer = document.getElementById('ms_' + containerId);
+          if (msContainer && !msContainer.contains(e.target)) {
+            dropdown.style.display = 'none';
+            isOpen = false;
+          }
+        });
+      }
+      render();
+      // 返回当前选中的数组引用
+      return {
+        getSelected: () => [...selected],
+        setSelected: (newSelected) => { selected = [...newSelected]; render(); }
+      };
+    }
+
+    // ---------- 渲染角色 ----------
+    function filterRoles() {
+      let f = [...roles];
+      if (starFilter) f = f.filter(r=>r.star);
+      if (selectedWvFilter) {
+        const wv = worldviews.find(w=>w.id===selectedWvFilter);
+        if (wv && wv.relatedRoles) {
+          f = f.filter(r => wv.relatedRoles.includes(r.id));
+        } else if (wv) {
+          f = [];
+        }
+      }
+      const kw = searchInput.value.trim().toLowerCase();
+      if (kw) f = f.filter(r=>r.name.toLowerCase().includes(kw));
+      f.sort((a,b)=>(b.star?1:0)-(a.star?1:0));
+      return f;
+    }
+    function renderRoleList() {
+      const list = document.querySelector('.role-list');
+      if (!list) return;
+      const filtered = filterRoles();
+      list.innerHTML = filtered.map(r => `<div class="role-item ${r.id===selectedRoleId?'selected':''}" draggable="true" data-id="${r.id}">
+        <button class="star-btn" data-star="${r.id}">${r.star ? `<svg viewBox="0 0 24 24" fill="#f59e0b" stroke="#f59e0b"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>` : `<svg viewBox="0 0 24 24" fill="none" stroke="#a0aec0"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`}</button>
+        <span class="role-name">${r.name}</span>
+      </div>`).join('') + `<button class="add-role-btn" id="addRoleBtn" draggable="false">+</button>`;
+      makeSortable('.role-list', (items) => {
+        const ids = items.map(el => el.dataset.id);
+        const newOrder = ids.map((id,i) => ({id, order:i}));
+        roles.forEach(r => { const found = newOrder.find(n=>n.id===r.id); if(found) r.order=found.order; });
+        saveAllData();
+        renderAll();
+      });
+    }
+    function renderRoleDetail() {
+      const panel = document.querySelector('.right-panel');
+      if (!panel) return;
+      if (editMode && currentPage==='roles') { renderRoleEdit(); return; }
+      if (!selectedRoleId) { panel.innerHTML = '<div class="empty-detail">点击左侧角色查看详情</div>'; return; }
+      const role = roles.find(r=>r.id===selectedRoleId);
+      if (!role) { panel.innerHTML = '<div class="empty-detail">角色不存在</div>'; return; }
+      const relatedStories = stories.filter(s => s.relatedRoles && s.relatedRoles.includes(role.id));
+      const relatedWorldviews = worldviews.filter(w => w.relatedRoles && w.relatedRoles.includes(role.id));
+      panel.innerHTML = `
+        <div style="display:flex;align-items:center;gap:16px;">
+          ${role.avatar?`<img src="${role.avatar}" class="detail-avatar">`:`<div class="detail-avatar" style="display:flex;align-items:center;justify-content:center;background:#e2e8f0;"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#718096" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>`}
+          <div><div class="detail-name">${role.name}</div><div style="color:#718096;">${role.notes||''}</div></div>
+        </div>
+        <div class="field-row"><strong>年龄：</strong>${role.age||'未知'}</div>
+        <div class="field-row"><strong>背景：</strong>${role.background||'暂无'}</div>
+        ${role.customFields?Object.entries(role.customFields).map(([k,v])=>`<div class="field-row"><strong>${k}：</strong>${v}</div>`).join(''):''}
+        <div>${(role.tags||[]).map(t=>`<span class="tag-badge">${t}</span>`).join('')}</div>
+        ${relatedStories.length ? `<div><strong>关联故事：</strong>${relatedStories.map(s=>`<span class="tag-badge" style="cursor:pointer;" data-storyid="${s.id}">${s.name}</span>`).join('')}</div>` : ''}
+        ${relatedWorldviews.length ? `<div><strong>关联世界观：</strong>${relatedWorldviews.map(w=>`<span class="tag-badge" style="cursor:pointer;" data-worldviewid="${w.id}">${w.name}</span>`).join('')}</div>` : ''}
+        <div class="action-btns">
+          <button class="btn" id="editRoleBtn">编辑</button>
+          <button class="btn" id="roleCardBtn">角色卡</button>
+          <button class="btn" id="deleteRoleBtn">删除</button>
+        </div>
+      `;
+      document.getElementById('editRoleBtn')?.addEventListener('click', ()=> { editMode=true; editingId=role.id; renderAll(); });
+      document.getElementById('roleCardBtn')?.addEventListener('click', ()=> showRoleCard(role));
+      document.getElementById('deleteRoleBtn')?.addEventListener('click', ()=> { if(confirm('确定删除？')) { roles=roles.filter(r=>r.id!==role.id); saveAllData(); selectedRoleId=null; renderAll(); } });
+      panel.querySelectorAll('[data-storyid]').forEach(el => {
+        el.addEventListener('click', ()=> { selectedStoryId = el.dataset.storyid; loadPage('stories'); });
+      });
+      panel.querySelectorAll('[data-worldviewid]').forEach(el => {
+        el.addEventListener('click', ()=> { selectedWorldviewId = el.dataset.worldviewid; loadPage('worldviews'); });
+      });
+    }
+
+    function renderRoleEdit() {
+      const role = roles.find(r=>r.id===editingId) || {};
+      const panel = document.querySelector('.right-panel');
+      panel.innerHTML = `
+        <div class="edit-form"><h3>${editingId?'编辑角色':'新建角色'}</h3>
+          <input id="editName" placeholder="姓名" value="${role.name||''}">
+          <input id="editAge" placeholder="年龄" value="${role.age||''}">
+          <textarea id="editBackground" placeholder="背景经历" rows="3">${role.background||''}</textarea>
+          <input id="editNotes" placeholder="备注/称号" value="${role.notes||''}">
+          <label>头像</label><input type="file" id="avatarFileInput" accept="image/*">
+          <img id="avatarPreview" class="upload-preview" src="${role.avatar||''}" style="${role.avatar?'':'display:none'}">
+          <div id="customFieldsContainer"></div>
+          <button class="btn" id="addCustomFieldBtn" type="button">+ 自定义字段</button>
+          <div id="tagSelectorContainer"></div>
+          <div style="margin-top:16px;display:flex;gap:8px;">
+            <button class="btn primary" id="saveEditBtn">保存</button>
+            <button class="btn" id="cancelEditBtn">取消</button>
+          </div>
+        </div>
+      `;
+      panel._avatarBase64 = role.avatar || '';
+      document.getElementById('avatarFileInput').addEventListener('change', async (e) => {
+        const file=e.target.files[0]; if(file){ const b64=await fileToBase64(file); panel._avatarBase64=b64; document.getElementById('avatarPreview').src=b64; document.getElementById('avatarPreview').style.display='block'; }
+      });
+      renderCustomFields(role.customFields||{});
+      renderTagSelector(role.tags||[], (tags)=> { panel._tags = tags; });
+      document.getElementById('addCustomFieldBtn').addEventListener('click', ()=> addCustomFieldRow());
+      document.getElementById('saveEditBtn').addEventListener('click', async ()=>{
+        const name = document.getElementById('editName').value.trim();
+        if(!name) return alert('请输入姓名');
+        const data = {
+          name, age: document.getElementById('editAge').value||'',
+          background: document.getElementById('editBackground').value||'',
+          notes: document.getElementById('editNotes').value||'',
+          avatar: panel._avatarBase64||'',
+          customFields: getFormCustomFields(),
+          tags: panel._tags || [],
+          star: role.star||false,
+          order: role.order||0,
+        };
+        if(editingId) data.id=editingId;
+        if(editingId) { const idx=roles.findIndex(r=>r.id===editingId); if(idx!==-1) roles[idx]={...roles[idx],...data}; }
+        else { data.id=genId(); roles.push(data); }
+        saveAllData();
+        editMode=false; editingId=null; selectedRoleId=data.id; renderAll();
+      });
+      document.getElementById('cancelEditBtn').addEventListener('click', ()=>{ editMode=false; editingId=null; renderAll(); });
+    }
+
+    function renderCustomFields(fields) {
+      const c = document.getElementById('customFieldsContainer'); if(!c) return;
+      c.innerHTML='';
+      Object.entries(fields).forEach(([k,v])=> addCustomFieldRow(k,v));
+    }
+    function addCustomFieldRow(k='',v='') {
+      const c = document.getElementById('customFieldsContainer'); if(!c) return;
+      const row = document.createElement('div'); row.className='custom-field-row';
+      row.innerHTML = `<input placeholder="字段名" value="${k}" class="cf-key"><input placeholder="值" value="${v}" class="cf-value"><button class="btn cf-remove">×</button>`;
+      row.querySelector('.cf-remove').addEventListener('click', ()=> row.remove());
+      c.appendChild(row);
+    }
+    function getFormCustomFields() {
+      const c=document.getElementById('customFieldsContainer'); if(!c) return {};
+      const obj={}; c.querySelectorAll('.custom-field-row').forEach(row=>{
+        const key=row.querySelector('.cf-key')?.value.trim(); const val=row.querySelector('.cf-value')?.value.trim();
+        if(key) obj[key]=val;
+      }); return obj;
+    }
+
+    function renderTagSelector(currentTags, onChange) {
+      const c=document.getElementById('tagSelectorContainer'); if(!c) return;
+      let selected = [...currentTags];
+      c.innerHTML = `<div class="tag-selector" id="tagSelector">
+        <div class="tag-selector-trigger" id="tagTrigger">${selected.length?selected.map(t=>`<span class="tag-badge">${t}<span data-remove="${t}" style="margin-left:4px;cursor:pointer;">×</span></span>`).join(''):'<span style="color:#a0aec0;">选择标签...</span>'}</div>
+        <div class="tag-dropdown" id="tagDropdown" style="display:none;"></div>
+      </div>`;
+      const trigger = document.getElementById('tagTrigger'); const dropdown = document.getElementById('tagDropdown');
+      function updateTrigger() {
+        trigger.innerHTML = selected.length?selected.map(t=>`<span class="tag-badge">${t}<span data-remove="${t}" style="margin-left:4px;cursor:pointer;">×</span></span>`).join(''):'<span style="color:#a0aec0;">选择标签...</span>';
+        if(onChange) onChange(selected);
+      }
+      function renderDropdown(filter='') {
+        const filtered = filter ? tagPool.filter(t=>t.includes(filter)) : tagPool;
+        dropdown.innerHTML = `<input class="search-input-sm" id="tagSearchInput" placeholder="搜索标签..."><div style="display:flex;flex-wrap:wrap;gap:4px;">${
+          filtered.map(t=>`<span class="tag-badge tag-option ${selected.includes(t)?'selected':''}" draggable="true">${t}</span>`).join('')
+        }</div><input id="newTagInput" placeholder="新标签回车添加" style="width:100%;margin-top:8px;padding:6px;border-radius:8px;border:1px solid #e2e8f0;">`;
+        const searchEl = document.getElementById('tagSearchInput');
+        if(searchEl) searchEl.addEventListener('input', (e)=> renderDropdown(e.target.value));
+        dropdown.querySelectorAll('.tag-option').forEach(opt=>{
+          opt.addEventListener('click', (e)=>{
+            const tag=e.target.textContent;
+            if(selected.includes(tag)) selected=selected.filter(t=>t!==tag);
+            else selected.push(tag);
+            updateTrigger(); renderDropdown(document.getElementById('tagSearchInput')?.value||'');
+          });
+        });
+        const inp=document.getElementById('newTagInput');
+        if(inp) inp.addEventListener('keydown', (e)=>{
+          if(e.key==='Enter' && inp.value.trim()){
+            const nt=inp.value.trim();
+            if(!tagPool.includes(nt)) { tagPool.push(nt); saveAllData(); }
+            if(!selected.includes(nt)) selected.push(nt);
+            updateTrigger(); renderDropdown(); inp.value='';
+          }
+        });
+        makeSortable('#tagDropdown .tag-option', (items) => {
+          const newOrder = items.map(el => el.textContent);
+          tagPool = newOrder.filter(t => tagPool.includes(t));
+          saveAllData();
+          renderDropdown();
+        });
+      }
+      trigger.addEventListener('click', (e)=>{
+        e.stopPropagation();
+        if(e.target.dataset.remove) { selected=selected.filter(t=>t!==e.target.dataset.remove); updateTrigger(); renderDropdown(); return; }
+        dropdown.style.display = dropdown.style.display==='none'?'block':'none';
+        if(dropdown.style.display==='block') renderDropdown();
+      });
+      document.addEventListener('click', (e)=>{ if(!document.getElementById('tagSelector')?.contains(e.target)) dropdown.style.display='none'; });
+    }
+
+    // ---------- 角色卡 ----------
+    function showRoleCard(role) {
+      const bgImage = role.cardBg || role.avatar || '';
+      const modal = document.createElement('div'); modal.className='modal';
+      modal.innerHTML = `
+        <div class="card-container" id="roleCardExport">
+          <div class="card-bg-blur" style="background-image:url(${bgImage})"></div>
+          ${role.avatar?`<img src="${role.avatar}" class="card-avatar">`:`<div class="card-avatar" style="background:#e2e8f0;display:flex;align-items:center;justify-content:center;"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#718096" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>`}
+          <div class="card-info"><h3 style="text-align:center;">${role.name}</h3>${role.notes?`<p>${role.notes}</p>`:''}${role.age?`<p>年龄：${role.age}</p>`:''}${role.background?`<p>${role.background.substring(0,50)}</p>`:''}${(role.tags||[]).map(t=>`<span class="tag-badge">${t}</span>`).join('')}</div>
+        </div>
+        <button class="btn" id="saveCardImg">保存为图片</button>
+        <button class="btn" id="closeModal">关闭</button>
+      `;
+      document.body.appendChild(modal);
+      document.getElementById('closeModal').onclick = ()=> modal.remove();
+      document.getElementById('saveCardImg').onclick = async ()=>{
+        const el=document.getElementById('roleCardExport');
+        const canvas=await html2canvas(el,{scale:2});
+        const link=document.createElement('a'); link.download=`${role.name}-角色卡.png`; link.href=canvas.toDataURL(); link.click();
+      };
+      modal.addEventListener('click', (e)=> { if(e.target===modal) modal.remove(); });
+    }
+
+    // ---------- 故事管理 ----------
+    function filterStories() {
+      let f = [...stories];
+      if (starFilter) f = f.filter(s=>s.star);
+      if (selectedWvFilter) f = f.filter(s=>s.worldId === selectedWvFilter);
+      if (storyFilterWorldId) f = f.filter(s=>s.worldId === storyFilterWorldId);
+      const kw = searchInput.value.trim().toLowerCase();
+      if (kw) f = f.filter(s=>s.name.toLowerCase().includes(kw));
+      f.sort((a,b)=>(b.star?1:0)-(a.star?1:0));
+      return f;
+    }
+    function renderStoryList() {
+      const list = document.querySelector('.role-list');
+      if (!list) return;
+      const filtered = filterStories();
+      list.innerHTML = filtered.map(s => `<div class="story-item ${s.id===selectedStoryId?'selected':''}" draggable="true" data-id="${s.id}">
+        ${s.cover?`<img src="${s.cover}" class="story-cover-small">`:`<div class="story-cover-small" style="background:#e2e8f0;display:flex;align-items:center;justify-content:center;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#718096" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div>`}
+        <span class="story-name">${s.name}</span>
+        <span class="story-tags">${(s.tags||[]).slice(0,2).map(t=>`<span class="tag-badge">${t}</span>`).join('')}</span>
+        <button class="star-btn" data-star="${s.id}" style="pointer-events:auto;">${s.star ? `<svg viewBox="0 0 24 24" fill="#f59e0b" stroke="#f59e0b"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>` : `<svg viewBox="0 0 24 24" fill="none" stroke="#a0aec0"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`}</button>
+      </div>`).join('') + `<button class="add-role-btn" id="addStoryBtn" draggable="false">+</button>`;
+      makeSortable('.role-list', (items) => {
+        const ids = items.map(el => el.dataset.id);
+        ids.forEach((id,i) => { const s=stories.find(st=>st.id===id); if(s) s.order=i; });
+        saveAllData();
+        renderAll();
+      });
+    }
+    function renderStoryDetail() {
+      const panel = document.querySelector('.right-panel');
+      if (!panel) return;
+      if (editMode && currentPage==='stories') { renderStoryEdit(); return; }
+      if (!selectedStoryId) { panel.innerHTML = '<div class="empty-detail">点击左侧故事查看详情</div>'; return; }
+      const story = stories.find(s=>s.id===selectedStoryId);
+      if (!story) { panel.innerHTML = '<div class="empty-detail">故事不存在</div>'; return; }
+      const wv = worldviews.find(w=>w.id===story.worldId);
+      const relatedRoles = roles.filter(r => story.relatedRoles && story.relatedRoles.includes(r.id));
+      panel.innerHTML = `
+        <div style="display:flex;align-items:center;gap:16px;">
+          ${story.cover?`<img src="${story.cover}" style="width:80px;height:80px;border-radius:12px;object-fit:cover;">`:`<div style="width:80px;height:80px;border-radius:12px;background:#e2e8f0;display:flex;align-items:center;justify-content:center;"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#718096" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div>`}
+          <div><div class="detail-name">${story.name}</div><div style="color:#718096;">${story.summary||''}</div></div>
+        </div>
+        <div class="field-row"><strong>世界观：</strong>${wv?wv.name:'无'}</div>
+        <div class="field-row"><strong>标签：</strong>${(story.tags||[]).map(t=>`<span class="tag-badge">${t}</span>`).join('')}</div>
+        ${relatedRoles.length?`<div><strong>关联角色：</strong>${relatedRoles.map(r=>`<span class="tag-badge" style="cursor:pointer;" data-roleid="${r.id}">${r.name}</span>`).join('')}</div>`:''}
+        <div style="margin-top:20px;"><strong>章节目录</strong><span style="margin-left:12px;font-size:0.8rem;color:#718096;">拖拽排序</span>
+          <div id="chapterList" style="margin-top:8px;">${(story.chapters||[]).map((ch,i)=>`<div class="chapter-item" draggable="true" data-chapteridx="${i}">
+            <span class="chapter-title">${ch.title||'无标题'}</span>
+            <span class="chapter-actions"><button class="btn" data-read="${i}">阅读</button><button class="btn" data-delchap="${i}">×</button></span>
+          </div>`).join('')}</div>
+        </div>
+        <div class="action-btns">
+          <button class="btn" id="editStoryBtn">编辑</button>
+          <button class="btn" id="deleteStoryBtn">删除</button>
+          <button class="btn primary" id="addChapterBtn">+ 新建章节</button>
+        </div>
+      `;
+      document.getElementById('editStoryBtn')?.addEventListener('click', ()=>{ editMode=true; editingId=story.id; renderAll(); });
+      document.getElementById('deleteStoryBtn')?.addEventListener('click', ()=>{ if(confirm('删除故事？')){ stories=stories.filter(s=>s.id!==story.id); saveAllData(); selectedStoryId=null; renderAll(); } });
+      document.getElementById('addChapterBtn')?.addEventListener('click', ()=> showChapterModal(story.id, null));
+      const chapList = document.getElementById('chapterList');
+      if(chapList) {
+        chapList.querySelectorAll('[data-read]').forEach(el=>{
+          el.addEventListener('click', ()=>{
+            const idx=parseInt(el.dataset.read);
+            openReadMode(story, idx);
+          });
+        });
+        chapList.querySelectorAll('[data-delchap]').forEach(el=>{
+          el.addEventListener('click', ()=>{
+            const idx=parseInt(el.dataset.delchap);
+            if(confirm('删除此章节？')){ story.chapters.splice(idx,1); saveAllData(); renderStoryDetail(); }
+          });
+        });
+        makeSortable('#chapterList', (items) => {
+          const newChaps = items.map(el => story.chapters[parseInt(el.dataset.chapteridx)]);
+          story.chapters = newChaps;
+          saveAllData();
+          renderStoryDetail();
+        });
+      }
+      panel.querySelectorAll('[data-roleid]').forEach(el=>{
+        el.addEventListener('click', ()=>{ selectedRoleId=el.dataset.roleid; loadPage('roles'); });
+      });
+    }
+
+    function renderStoryEdit() {
+      const story = stories.find(s=>s.id===editingId) || {};
+      const panel = document.querySelector('.right-panel');
+      panel.innerHTML = `
+        <div class="edit-form"><h3>${editingId?'编辑故事':'新建故事'}</h3>
+          <input id="editStoryName" placeholder="故事名" value="${story.name||''}">
+          <textarea id="editSummary" placeholder="梗概" rows="2">${story.summary||''}</textarea>
+          <label>世界观</label>
+          <select id="editWorldId"><option value="">无</option>${worldviews.map(w=>`<option value="${w.id}" ${w.id===story.worldId?'selected':''}>${w.name}</option>`).join('')}</select>
+          <label>封面图</label><input type="file" id="coverFileInput" accept="image/*">
+          <img id="coverPreview" class="upload-preview" src="${story.cover||''}" style="${story.cover?'':'display:none'}">
+          <div id="tagSelectorContainer"></div>
+          <div><strong>关联角色</strong><div id="relatedRoleSelector" style="margin-top:4px;"></div></div>
+          <div style="margin-top:16px;display:flex;gap:8px;">
+            <button class="btn primary" id="saveEditStoryBtn">保存</button>
+            <button class="btn" id="cancelEditStoryBtn">取消</button>
+          </div>
+        </div>
+      `;
+      panel._coverBase64 = story.cover || '';
+      document.getElementById('coverFileInput').addEventListener('change', async (e)=>{
+        const file=e.target.files[0]; if(file){ const b64=await fileToBase64(file); panel._coverBase64=b64; document.getElementById('coverPreview').src=b64; document.getElementById('coverPreview').style.display='block'; }
+      });
+      renderTagSelector(story.tags||[], (tags)=>{ panel._tags = tags; });
+      // 关联角色 - 使用独立多选组件
+      const roleSelector = renderMultiSelect('relatedRoleSelector', roles, story.relatedRoles||[], 'name', '选择角色...', (selected) => {
+        panel._relatedRoles = selected;
+      });
+      document.getElementById('saveEditStoryBtn').addEventListener('click', ()=>{
+        const name=document.getElementById('editStoryName').value.trim();
+        if(!name) return alert('请输入故事名');
+        const worldId = document.getElementById('editWorldId').value || '';
+        const data = {
+          name, summary: document.getElementById('editSummary').value||'',
+          worldId: worldId,
+          cover: panel._coverBase64||'',
+          tags: panel._tags||[],
+          relatedRoles: panel._relatedRoles||[],
+          star: story.star||false,
+          order: story.order||0,
+          chapters: story.chapters||[],
+        };
+        if(editingId) data.id=editingId;
+        if(editingId) { const idx=stories.findIndex(s=>s.id===editingId); if(idx!==-1) stories[idx]={...stories[idx],...data}; }
+        else { data.id=genId(); stories.push(data); }
+        saveAllData();
+        editMode=false; editingId=null; selectedStoryId=data.id; renderAll();
+      });
+      document.getElementById('cancelEditStoryBtn').addEventListener('click', ()=>{ editMode=false; editingId=null; renderAll(); });
+    }
+
+    // ---------- 章节模态框 ----------
+    function showChapterModal(storyId, chapterIdx) {
+      const story = stories.find(s=>s.id===storyId);
+      if(!story) return;
+      const ch = chapterIdx!==null ? story.chapters[chapterIdx] : null;
+      const modal = document.createElement('div'); modal.className='modal';
+      let isSaving = false;
+      modal.innerHTML = `
+        <div class="modal-inner">
+          <h3>${ch?'编辑章节':'新建章节'}</h3>
+          <input id="chapTitle" placeholder="章节标题" value="${ch?ch.title:''}">
+          <textarea id="chapContent" placeholder="正文内容（支持粘贴）" rows="6">${ch?ch.content:''}</textarea>
+          <label>头图</label><input type="file" id="chapImageInput" accept="image/*">
+          <img id="chapImagePreview" class="upload-preview" src="${ch?ch.image:''}" style="${ch&&ch.image?'':'display:none'}">
+          <div style="margin-top:12px;display:flex;gap:8px;">
+            <button class="btn primary" id="saveChapBtn">保存</button>
+            <button class="btn" id="cancelChapBtn">取消</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(modal);
+      let imageBase64 = ch?.image || '';
+      document.getElementById('chapImageInput').addEventListener('change', async (e)=>{
+        const file=e.target.files[0]; if(file){ imageBase64=await fileToBase64(file); document.getElementById('chapImagePreview').src=imageBase64; document.getElementById('chapImagePreview').style.display='block'; }
+      });
+      const saveBtn = document.getElementById('saveChapBtn');
+      saveBtn.addEventListener('click', ()=>{
+        if(isSaving) return;
+        isSaving = true;
+        saveBtn.disabled = true;
+        saveBtn.textContent = '保存中...';
+        try {
+          const title=document.getElementById('chapTitle').value.trim()||'无标题';
+          const content=document.getElementById('chapContent').value||'';
+          const data = { title, content, image: imageBase64||'' };
+          if(chapterIdx!==null) story.chapters[chapterIdx] = data;
+          else { if(!story.chapters) story.chapters=[]; story.chapters.push(data); }
+          saveAllData();
+          modal.remove();
+          renderStoryDetail();
+        } catch(err) {
+          alert('保存失败：'+err.message);
+          saveBtn.disabled = false;
+          saveBtn.textContent = '保存';
+          isSaving = false;
+        }
+      });
+      document.getElementById('cancelChapBtn').addEventListener('click', ()=> modal.remove());
+      modal.addEventListener('click', (e)=> { if(e.target===modal) modal.remove(); });
+    }
+
+    // ---------- 阅读模式 ----------
+    function openReadMode(story, idx) {
+      const ch = story.chapters?.[idx];
+      if(!ch) return;
+      readModeChapterId = idx;
+      readingEditMode = false;
+      renderReadMode(story, idx);
+    }
+
+    function renderReadMode(story, idx, editModeFlag = false) {
+      const ch = story.chapters?.[idx];
+      if(!ch) return;
+      const panel = document.querySelector('.right-panel');
+      if (editModeFlag) {
+        let tempImageBase64 = ch.image || '';
+        panel.innerHTML = `
+          <div class="read-mode">
+            <div style="margin-bottom:8px;">
+              <input class="edit-chapter-input" id="editChapTitle" placeholder="章节标题" value="${ch.title||''}">
+              <label>头图</label><input type="file" id="editChapImageInput" accept="image/*">
+              <img id="editChapImagePreview" class="upload-preview" src="${ch.image||''}" style="${ch.image?'':'display:none'}">
+              <textarea class="edit-chapter-textarea" id="editChapContent" placeholder="正文内容">${ch.content||''}</textarea>
+            </div>
+            <div class="read-nav">
+              <button class="btn" id="readPrev">上一章</button>
+              <button class="btn primary" id="saveEditChap">保存</button>
+              <button class="btn" id="cancelEditChap">取消</button>
+              <button class="btn" id="readNext">下一章</button>
+            </div>
+          </div>
+        `;
+        document.getElementById('editChapImageInput').addEventListener('change', async (e)=>{
+          const file=e.target.files[0]; if(file){ const b64=await fileToBase64(file); tempImageBase64=b64; document.getElementById('editChapImagePreview').src=b64; document.getElementById('editChapImagePreview').style.display='block'; }
+        });
+        document.getElementById('saveEditChap').addEventListener('click', ()=>{
+          const title = document.getElementById('editChapTitle').value.trim()||'无标题';
+          const content = document.getElementById('editChapContent').value||'';
+          story.chapters[idx] = { title, content, image: tempImageBase64||'' };
+          saveAllData();
+          renderReadMode(story, idx, false);
+        });
+        document.getElementById('cancelEditChap').addEventListener('click', ()=>{
+          renderReadMode(story, idx, false);
+        });
+        document.getElementById('readPrev').addEventListener('click', ()=>{ if(idx>0) openReadMode(story, idx-1); });
+        document.getElementById('readNext').addEventListener('click', ()=>{ if(story.chapters && idx<story.chapters.length-1) openReadMode(story, idx+1); });
+        return;
+      }
+
+      panel.innerHTML = `
+        <div class="read-mode">
+          ${ch.image?`<img src="${ch.image}" class="read-header-img">`:'<div style="height:20px;"></div>'}
+          ${ch.image?'<div class="read-gradient"></div>':''}
+          <div class="read-content"><h2>${ch.title||'无标题'}</h2>${ch.content||''}</div>
+          <div class="read-nav">
+            <button class="btn" id="readPrev">上一章</button>
+            <button class="btn" id="readBack">返回目录</button>
+            <button class="btn" id="readNext">下一章</button>
+            <button class="btn primary" id="editChapBtn">编辑</button>
+          </div>
+        </div>
+      `;
+      document.getElementById('readBack').addEventListener('click', ()=>{ readModeChapterId=null; renderStoryDetail(); });
+      document.getElementById('readPrev').addEventListener('click', ()=>{ if(idx>0) openReadMode(story, idx-1); });
+      document.getElementById('readNext').addEventListener('click', ()=>{ if(story.chapters && idx<story.chapters.length-1) openReadMode(story, idx+1); });
+      document.getElementById('editChapBtn').addEventListener('click', ()=>{
+        renderReadMode(story, idx, true);
+      });
+    }
+
+    // ---------- 世界观独立页面 ----------
+    function filterWorldviews() {
+      let f = [...worldviews];
+      const kw = searchInput.value.trim().toLowerCase();
+      if (kw) f = f.filter(w=>w.name.toLowerCase().includes(kw));
+      return f;
+    }
+    function renderWorldviewList() {
+      const list = document.querySelector('.role-list');
+      if (!list) return;
+      const filtered = filterWorldviews();
+      list.innerHTML = filtered.map(w => `<div class="role-item worldview-item ${w.id===selectedWorldviewId?'selected':''}" draggable="true" data-id="${w.id}">
+        <span class="role-name">${w.name}</span>
+        <span style="font-size:0.75rem;color:#718096;">${w.desc?w.desc.substring(0,12):''}</span>
+      </div>`).join('') + `<button class="add-role-btn" id="addWvBtn" draggable="false">+</button>`;
+      makeSortable('.role-list', (items) => {
+        const ids = items.map(el => el.dataset.id);
+        ids.forEach((id,i) => { const w=worldviews.find(ww=>ww.id===id); if(w) w.order=i; });
+        saveAllData();
+        renderAll();
+      });
+      document.getElementById('addWvBtn')?.addEventListener('click', ()=>{ editMode=true; editingId=null; selectedWorldviewId=null; renderAll(); });
+    }
+    function renderWorldviewDetail() {
+      const panel = document.querySelector('.right-panel');
+      if (!panel) return;
+      if (editMode && currentPage==='worldviews') { renderWorldviewEdit(); return; }
+      if (!selectedWorldviewId) { panel.innerHTML = '<div class="empty-detail">点击左侧世界观查看详情</div>'; return; }
+      const wv = worldviews.find(w=>w.id===selectedWorldviewId);
+      if (!wv) { panel.innerHTML = '<div class="empty-detail">世界观不存在</div>'; return; }
+      const worldIdStories = stories.filter(s => s.worldId === wv.id);
+      const relatedStoriesList = stories.filter(s => wv.relatedStories && wv.relatedStories.includes(s.id));
+      const mergedStories = [...worldIdStories, ...relatedStoriesList].filter((s, i, self) => self.findIndex(t=>t.id===s.id)===i);
+      const relatedRoles = roles.filter(r => wv.relatedRoles && wv.relatedRoles.includes(r.id));
+      panel.innerHTML = `
+        <div><div class="detail-name">${wv.name}</div></div>
+        <div class="field-row"><strong>描述：</strong>${wv.desc||'暂无'}</div>
+        <div class="field-row"><strong>标签：</strong>${(wv.tags||[]).map(t=>`<span class="tag-badge">${t}</span>`).join('')}</div>
+        ${relatedRoles.length?`<div><strong>关联角色：</strong>${relatedRoles.map(r=>`<span class="tag-badge" style="cursor:pointer;" data-roleid="${r.id}">${r.name}</span>`).join('')}</div>`:''}
+        ${mergedStories.length?`<div><strong>关联故事：</strong>${mergedStories.map(s=>`<span class="tag-badge" style="cursor:pointer;" data-storyid="${s.id}">${s.name}</span>`).join('')}</div>`:''}
+        <div class="action-btns">
+          <button class="btn" id="editWvBtn">编辑</button>
+          <button class="btn" id="deleteWvBtn">删除</button>
+        </div>
+      `;
+      document.getElementById('editWvBtn')?.addEventListener('click', ()=>{ editMode=true; editingId=wv.id; renderAll(); });
+      document.getElementById('deleteWvBtn')?.addEventListener('click', ()=>{ if(confirm('删除世界观？')){ worldviews=worldviews.filter(w=>w.id!==wv.id); saveAllData(); selectedWorldviewId=null; renderAll(); } });
+      panel.querySelectorAll('[data-storyid]').forEach(el=>{
+        el.addEventListener('click', ()=>{ selectedStoryId=el.dataset.storyid; loadPage('stories'); });
+      });
+      panel.querySelectorAll('[data-roleid]').forEach(el=>{
+        el.addEventListener('click', ()=>{ selectedRoleId=el.dataset.roleid; loadPage('roles'); });
+      });
+    }
+    function renderWorldviewEdit() {
+      const wv = worldviews.find(w=>w.id===editingId) || {};
+      const panel = document.querySelector('.right-panel');
+      // 独立存储选中的角色和故事
+      let wvSelectedRoles = wv.relatedRoles || [];
+      let wvSelectedStories = wv.relatedStories || [];
+
+      panel.innerHTML = `
+        <div class="edit-form"><h3>${editingId?'编辑世界观':'新建世界观'}</h3>
+          <input id="editWvName" placeholder="名称" value="${wv.name||''}">
+          <textarea id="editWvDesc" placeholder="描述" rows="3">${wv.desc||''}</textarea>
+          <div id="tagSelectorContainer"></div>
+          <div><strong>关联角色</strong><div id="wvRelatedRoleSelector" style="margin-top:4px;"></div></div>
+          <div><strong>关联故事</strong><div id="wvRelatedStorySelector" style="margin-top:4px;"></div></div>
+          <div style="margin-top:16px;display:flex;gap:8px;">
+            <button class="btn primary" id="saveWvBtn">保存</button>
+            <button class="btn" id="cancelWvBtn">取消</button>
+          </div>
+        </div>
+      `;
+
+      renderTagSelector(wv.tags||[], (tags)=>{ panel._tags = tags; });
+
+      // 使用独立多选组件 - 角色
+      const roleMulti = renderMultiSelect('wvRelatedRoleSelector', roles, wvSelectedRoles, 'name', '选择角色...', (selected) => {
+        wvSelectedRoles = selected;
+      });
+
+      // 使用独立多选组件 - 故事
+      const storyMulti = renderMultiSelect('wvRelatedStorySelector', stories, wvSelectedStories, 'name', '选择故事...', (selected) => {
+        wvSelectedStories = selected;
+      });
+
+      document.getElementById('saveWvBtn').addEventListener('click', ()=>{
+        const name=document.getElementById('editWvName').value.trim();
+        if(!name) return alert('请输入名称');
+        // 直接从独立数组读取
+        const data = {
+          name, desc: document.getElementById('editWvDesc').value||'',
+          tags: panel._tags||[],
+          relatedRoles: wvSelectedRoles,
+          relatedStories: wvSelectedStories,
+          order: wv.order||0
+        };
+        if(editingId) data.id=editingId;
+        if(editingId) { const idx=worldviews.findIndex(w=>w.id===editingId); if(idx!==-1) worldviews[idx]={...worldviews[idx],...data}; }
+        else { data.id=genId(); worldviews.push(data); }
+        saveAllData();
+        editMode=false; editingId=null; selectedWorldviewId=data.id; renderAll();
+      });
+      document.getElementById('cancelWvBtn').addEventListener('click', ()=>{ editMode=false; editingId=null; renderAll(); });
+    }
+
+    // ---------- 导出导入 ----------
+    function exportData() {
+      const data = { roles, stories, worldviews, tagPool };
+      const blob=new Blob([JSON.stringify(data,null,2)], {type:'application/json'});
+      const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='人间卷_备份.json'; a.click(); URL.revokeObjectURL(url);
+    }
+    function importData() {
+      const input=document.createElement('input'); input.type='file'; input.accept='.json';
+      input.onchange=async (e)=>{
+        const file=e.target.files[0]; if(!file) return;
+        const text=await file.text();
+        try { const data=JSON.parse(text); if(data.roles) roles=data.roles; if(data.stories) stories=data.stories; if(data.worldviews) worldviews=data.worldviews; if(data.tagPool) tagPool=data.tagPool; saveAllData(); renderAll(); alert('导入成功'); } catch(err){ alert('文件格式错误'); }
+      };
+      input.click();
+    }
+
+    // ---------- 页面切换 ----------
+    function loadPage(page) {
+      currentPage = page;
+      document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+      document.querySelector(`.nav-item[data-page="${page}"]`)?.classList.add('active');
+      if(page==='roles') {
+        pageContent.innerHTML = `<div class="left-panel"><div class="filter-bar"><select class="filter-select" id="wvFilter"><option value="">全部世界观</option>${worldviews.map(w=>`<option value="${w.id}">${w.name}</option>`).join('')}</select><div class="toggle-star" id="starToggle">⭐ 星标</div></div><div class="role-list"></div></div><div class="right-panel"></div>`;
+        document.getElementById('starToggle').addEventListener('click', ()=>{ starFilter=!starFilter; renderAll(); });
+        document.getElementById('wvFilter').addEventListener('change', (e)=>{ selectedWvFilter=e.target.value; renderAll(); });
+        renderAll();
+      } else if(page==='stories') {
+        pageContent.innerHTML = `<div class="left-panel"><div class="filter-bar"><select class="filter-select" id="worldFilter"><option value="">全部世界观</option>${worldviews.map(w=>`<option value="${w.id}">${w.name}</option>`).join('')}</select><div class="toggle-star" id="starToggle">⭐ 星标</div></div><div class="role-list"></div></div><div class="right-panel"></div>`;
+        document.getElementById('starToggle').addEventListener('click', ()=>{ starFilter=!starFilter; renderAll(); });
+        document.getElementById('worldFilter').addEventListener('change', (e)=>{
+          storyFilterWorldId = e.target.value;
+          renderAll();
+        });
+        renderAll();
+      } else if(page==='worldviews') {
+        pageContent.innerHTML = `<div class="left-panel"><div class="filter-bar"></div><div class="role-list"></div></div><div class="right-panel"></div>`;
+        renderAll();
+      }
+    }
+
+    function renderAll() {
+      if(currentPage==='roles') { renderRoleList(); renderRoleDetail(); }
+      else if(currentPage==='stories') { renderStoryList(); renderStoryDetail(); }
+      else if(currentPage==='worldviews') { renderWorldviewList(); renderWorldviewDetail(); }
+    }
+
+    // ---------- 事件绑定 ----------
+    document.addEventListener('click', async (e) => {
+      if(e.target.closest('.star-btn')) {
+        const id=e.target.closest('.star-btn').dataset.star;
+        if(currentPage==='roles') { const r=roles.find(rr=>rr.id===id); if(r){ r.star=!r.star; saveAllData(); renderAll(); } }
+        else if(currentPage==='stories') { const s=stories.find(ss=>ss.id===id); if(s){ s.star=!s.star; saveAllData(); renderAll(); } }
+        return;
+      }
+      if(e.target.closest('.role-item') && currentPage==='roles') {
+        selectedRoleId=e.target.closest('.role-item').dataset.id; editMode=false; editingId=null; renderAll(); return;
+      }
+      if(e.target.closest('.story-item') && currentPage==='stories') {
+        selectedStoryId=e.target.closest('.story-item').dataset.id; editMode=false; editingId=null; renderAll(); return;
+      }
+      if(e.target.closest('.worldview-item') && currentPage==='worldviews') {
+        selectedWorldviewId=e.target.closest('.worldview-item').dataset.id; editMode=false; editingId=null; renderAll(); return;
+      }
+      if(e.target.closest('#addRoleBtn') && currentPage==='roles') { editMode=true; editingId=null; selectedRoleId=null; renderAll(); return; }
+      if(e.target.closest('#addStoryBtn') && currentPage==='stories') { editMode=true; editingId=null; selectedStoryId=null; renderAll(); return; }
+    });
+
+    document.getElementById('exportBtn').addEventListener('click', exportData);
+    document.getElementById('importBtn').addEventListener('click', importData);
+
+    // ---------- 初始化 ----------
+    (async function init() {
+      loadAllData();
+      loadPage('roles');
+      menuToggle.onclick = ()=>{ sidebar.classList.toggle('open'); overlay.classList.toggle('show'); };
+      overlay.onclick = ()=>{ sidebar.classList.remove('open'); overlay.classList.remove('show'); };
+      document.querySelectorAll('.nav-item').forEach(item=>{
+        item.addEventListener('click', (e)=>{ loadPage(e.currentTarget.dataset.page); });
+      });
+      searchInput.addEventListener('input', renderAll);
+    })();
+  })();
+</script>
+</body>
+</html>
